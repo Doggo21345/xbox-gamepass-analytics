@@ -1,0 +1,66 @@
+{
+  "product_id": "9NM79B7N9JM6",
+  "title": "Street Fighter™ 6",
+  "publisher": "CAPCOM CO., LTD.",
+  "developer": "CAPCOM CO., LTD.",
+  "release_date": "2023-06-02T04:00:00.0000000Z",
+  "short_description": "Here comes Capcom’s newest challenger! Street Fighter™ 6 launches worldwide on June 2nd, 2023 and represents the next evolution of the Street Fighter™ series! Street Fighter 6 spans three distinct game modes, including World Tour, Fighting Ground and Battle Hub.",
+  "rating_all_time": {
+    "AggregateTimeSpan": "AllTime",
+    "AverageRating": 3.6,
+    "PlayCount": 0,
+    "RatingCount": 834,
+    "RentalCount": "0",
+    "TrialCount": "0",
+    "PurchaseCount": "0"
+  },
+  "rating_7_days": {
+    "AggregateTimeSpan": "7Days",
+    "AverageRating": 1.3,
+    "PlayCount": 0,
+    "RatingCount": 3,
+    "RentalCount": "0",
+    "TrialCount": "0",
+    "PurchaseCount": "0"
+  },
+  "rating_30_days": {
+    "AggregateTimeSpan": "30Days",
+    "AverageRating": 3.3,
+    "PlayCount": 0,
+    "RatingCount": 19,
+    "RentalCount": "0",
+    "TrialCount": "0",
+    "PurchaseCount": "0"
+  },
+  "bundle_count": 0,
+  "is_xpa": null,
+  "platforms": [],
+  "asset_count": 0,
+  "has_gamepass_remediation": false,
+  "prices": [
+    {
+      "list_price": 19.99,
+      "msrp": 39.99,
+      "start": "2025-12-18T10:00:00.0000000Z",
+      "end": "2026-01-08T09:59:59.0000000Z"
+    },
+    {
+      "list_price": 19.99,
+      "msrp": 39.99,
+      "start": "2025-12-18T10:00:00.0000000Z",
+      "end": "2026-01-08T09:59:59.0000000Z"
+    },
+    {
+      "list_price": 0.0,
+      "msrp": 0.0,
+      "start": "1753-01-01T00:00:00.0000000Z",
+      "end": "9998-12-30T00:00:00.0000000Z"
+    },
+    {
+      "list_price": 0.0,
+      "msrp": 0.0,
+      "start": "2025-12-18T10:00:00.0000000Z",
+      "end": "2026-01-08T09:59:59.0000000Z"
+    }
+  ]
+}
