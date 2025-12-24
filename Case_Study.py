@@ -2,7 +2,6 @@
 import pandas as pd
 import json
 
-# 1. Load your tidy JSON files
 with open("tidy_product.json_mk1", "r") as f:
     mk1_data = json.load(f)
 
@@ -11,11 +10,10 @@ with open("tidy_product.json_sf6", "r") as f:
 
 def build_comparison_row(data):
     """Builds a comparison row for the DataFrame based on the tidy JSON data."""
-    # Extract raw counts
     r7 = data.get("rating_7_days", {}).get("RatingCount", 0)
     r30 = data.get("rating_30_days", {}).get("RatingCount", 0)
     
-    # Calculations (The Data Science Layer)
+    # Calculations 
     momentum = (r7 / r30 * 100) if r30 > 0 else 0
     velocity = r7 / 7
     
