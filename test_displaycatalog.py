@@ -35,7 +35,7 @@ tidy = {
     "bundle_count": len(p.get("Properties", {}).get("BundledSkus", [])),
     "is_xpa": p.get("Properties", {}).get("XboxXPA", False),
     "platforms": p.get("Properties", {}).get("SupportedPlatforms", []),
-    "asset_count": len(p.get("Images", [])) + len(p.get("Videos", [])),
+    "asset_count": len(lp.get("Images", [])) + len(lp.get("Videos", [])) + len(lp.get("CMSVideos", [])), # This is the number of images and videos in the localized properties
     "has_gamepass_remediation": any(
     "Game Pass" in r.get("Description", "") 
     for lp_item in p.get("LocalizedProperties", [])
