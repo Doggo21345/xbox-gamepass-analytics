@@ -1,6 +1,7 @@
 import requests
 import json
 
+
 big_id = "9nm79b7n9jm6"
 url = "https://displaycatalog.mp.microsoft.com/v7.0/products"
 params = {

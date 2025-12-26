@@ -4,6 +4,9 @@ import numpy as np
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import seaborn as sns
+from prepare_data import prepare_games_dataset
+
+
 
 # ============================================================================
 # COMPREHENSIVE GAME PASS IMPACT & GENRE ANALYSIS
@@ -67,8 +70,8 @@ def extract_game_row(data):
             "rating_trend_7d_vs_alltime": round(rating_7d - rating_all, 3),
             
             # Timeline
-            "release_date": release_date,
-            "gamepass_date": gamepass_date,
+            "release": release_date,
+            "added": gamepass_date,
             "days_since_release": days_since_release,
             "days_since_gp_add": days_since_gp_add,
             "is_day_one_gp": (days_since_gp_add <= 1) if pd.notna(gamepass_date) else False,
@@ -103,10 +106,10 @@ def genre_performance_analysis(df):
         'momentum': ['median', 'mean', 'std'],
         'discovery_capture': ['median', 'mean'],
         'quality_retention': ['median', 'mean'],
-        'rating_7d': 'mean',
-        'rating_30d': 'mean',
-        'rating_alltime': 'mean',
-        'rating_trend_7d_vs_alltime': 'mean',
+        'rating_7d': ['mean', 'std', 'median'],
+        'rating_30d': ['mean', 'std', 'median'],
+        'rating_alltime': ['mean', 'std', 'median'],
+        'rating_trend_7d_vs_alltime': ['mean', 'std', 'median'],
         'title': 'count'  # Number of games per genre
     }).round(2)
     
@@ -118,7 +121,7 @@ def genre_performance_analysis(df):
 
 def genre_gamepass_comparison(df):
     """Compare Game Pass vs Non-Game Pass games by genre."""
-    comparison = df.groupby(['genre', 'has_gamepass']).agg({
+    comparison = df.groupby(['genre', 'has_gamepass']).agg({ #using the agg fucntion to peform a series of operations on the grouped data to get summary statistics for each genre and Game Pass status
         'momentum': 'mean',
         'discovery_capture': 'mean',
         'quality_retention': 'mean',
@@ -182,22 +185,10 @@ def momentum_rating_correlation(df):
     
     return correlation
 
-def identify_holiday_spike(df):
-    """Detect if there's unusual engagement around holidays."""
-    # Days within holiday window (Dec 20 - Dec 26, 2025)
-    df['is_holiday_window'] = df['rating_count_7d'] > 0  # Placeholder - adjust logic as needed
-    
-    # Compare 7-day engagement to 30-day average
-    df['engagement_ratio'] = (df['rating_count_7d'] / (df['rating_count_30d'] / 4.3)).round(2)
-    
-    # High ratio = abnormal spike
-    holiday_spikes = df[df['engagement_ratio'] > 1.5].sort_values('engagement_ratio', ascending=False)
-    
-    return holiday_spikes[['title', 'genre', 'momentum', 'engagement_ratio', 'rating_count_7d', 'rating_count_30d']]
-
 def day_one_vs_existing_gp(df):
     """Compare day-one Game Pass additions vs games added later."""
     gp_games = df[df['has_gamepass']].copy()
+    gp_games = gp_games[gp_games['is_day_one_gp'] == True  if gp_games['release_date'] == gp_games['added'] else False]
     
     day_one = gp_games[gp_games['is_day_one_gp'] == True]
     existing = gp_games[gp_games['is_day_one_gp'] == False]
@@ -272,16 +263,9 @@ if __name__ == "__main__":
     print("=" * 80)
     print("COMPREHENSIVE GAME PASS IMPACT ANALYSIS")
     print("=" * 80)
-    
-    # Load your tidy JSON files
-    tidy_files = [
-        "tidy_product.json_mk1",
-        "tidy_product.json_sf6",
-        # Add more as needed
-    ]
-    
     # Build master dataframe
-    df_all = build_aggregated_dataframe(tidy_files)
+    df_all = prepare_games_dataset("xbox_data_20251224_1937.json")
+    df_all = merge_genre_from_csv(df_all, "xbox_final_cleaned_results.csv")
     print(f"\n📊 Loaded {len(df_all)} games")
     
     # ────────────────────────────────────────────────────────────────────────
@@ -335,12 +319,7 @@ if __name__ == "__main__":
         print(corr_matrix)
         corr_matrix.to_csv("metric_correlations.csv")
         print("✓ Saved to metric_correlations.csv")
-    
-    holiday_spikes = identify_holiday_spike(df_all)
-    print("\nPotential Holiday Spikes (Engagement Ratio > 1.5x normal):")
-    print(holiday_spikes)
-    holiday_spikes.to_csv("potential_holiday_spikes.csv", index=False)
-    print("✓ Saved to potential_holiday_spikes.csv")
+
     
     day_one_comparison = day_one_vs_existing_gp(df_all)
     print("\nDay-One GP vs Later Additions:")
