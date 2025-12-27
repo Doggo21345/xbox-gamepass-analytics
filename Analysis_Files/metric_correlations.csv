@@ -1,0 +1,7 @@
+,momentum,discovery_capture,quality_retention,rating_7_days_avg,rating_30_days_avg,rating_alltime_avg
+momentum,1.0,0.126,0.356,0.671,0.378,0.141
+discovery_capture,0.126,1.0,0.045,0.101,0.062,0.065
+quality_retention,0.356,0.045,1.0,0.519,0.95,0.042
+rating_7_days_avg,0.671,0.101,0.519,1.0,0.582,0.306
+rating_30_days_avg,0.378,0.062,0.95,0.582,1.0,0.353
+rating_alltime_avg,0.141,0.065,0.042,0.306,0.353,1.0

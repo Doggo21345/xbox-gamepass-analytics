@@ -9,7 +9,7 @@ from prepare_data import prepare_games_dataset
 
 
 # ============================================================================
-# COMPREHENSIVE GAME PASS IMPACT & GENRE ANALYSIS
+# COMPREHENSIVE GAME PASS IMPACT & Genre ANALYSIS
 # ============================================================================
 
 def load_game_data(file_path):
@@ -17,68 +17,52 @@ def load_game_data(file_path):
     with open(file_path, 'r') as f:
         return json.load(f)
 
-def extract_game_row(data):
-    """Extract key metrics from a single game's tidy data."""
+def calculate_game_metrics(df):
+    """Add calculated metric columns directly to DataFrame."""
+    # Get rating counts
+    r7 = pd.to_numeric(df["rating_7_days_count"], errors='coerce').fillna(0)
+    r30 = pd.to_numeric(df["rating_30_days_count"], errors='coerce').fillna(0)
+    r_all = pd.to_numeric(df["rating_alltime_count"], errors='coerce').fillna(0)
+    
+    # Get ratings
+    rating_7d = pd.to_numeric(df["rating_7_days_avg"], errors='coerce').fillna(0)
+    rating_30d = pd.to_numeric(df["rating_30_days_avg"], errors='coerce').fillna(0)
+    rating_all = pd.to_numeric(df["rating_alltime_avg"], errors='coerce').fillna(0)
+
+    
+    # Parse dates
+    release_date = pd.to_datetime(df["Release"], errors='coerce')
+    gamepass_date = pd.to_datetime(df["Added"], errors='coerce')
+
+    # Normalize timezones: make sure datetimes are tz-naive so subtraction works
+    # If series are timezone-aware, convert to naive by removing tz info.
     try:
-        r7 = data.get("rating_7_days", {}).get("RatingCount", 0)
-        r30 = data.get("rating_30_days", {}).get("RatingCount", 0)
-        r_all = data.get("rating_all_time", {}).get("RatingCount", 0)
-        
-        rating_7d = data.get("rating_7_days", {}).get("AverageRating", 0)
-        rating_30d = data.get("rating_30_days", {}).get("AverageRating", 0)
-        rating_all = data.get("rating_all_time", {}).get("AverageRating", 0)
-        
-        # Parse dates (ISO format expected)
-        release_date_str = data.get("original_release_date", "")
-        gamepass_date_str = data.get("gamepass_added_date", "")
-        
-        release_date = pd.to_datetime(release_date_str) if release_date_str else pd.NaT
-        gamepass_date = pd.to_datetime(gamepass_date_str) if gamepass_date_str else pd.NaT
-        
-        days_since_release = (pd.Timestamp.now() - release_date).days if pd.notna(release_date) else None
-        days_since_gp_add = (pd.Timestamp.now() - gamepass_date).days if pd.notna(gamepass_date) else None
-        
-        # MOMENTUM: How much engagement in last 7 days vs 30 days
-        momentum = (r7 / r30 * 100) if r30 > 0 else 0
-        
-        # DISCOVERY CAPTURE: What % of all-time engagement is happening NOW
-        discovery_capture = (r7 / r_all * 100) if r_all > 0 else 0
-        
-        # QUALITY RETENTION: Did GamePass players rate higher than original buyers?
-        quality_retention = rating_30d - rating_all
-        
-        return {
-            "title": data.get("title", "Unknown"),
-            "genre": data.get("category", "Unknown"),
-            "publisher": data.get("publisher", "Unknown"),
-            "has_gamepass": data.get("has_gamepass_remediation", False),
-            
-            # Raw counts
-            "rating_count_7d": r7,
-            "rating_count_30d": r30,
-            "rating_count_alltime": r_all,
-            
-            # Ratings
-            "rating_7d": rating_7d,
-            "rating_30d": rating_30d,
-            "rating_alltime": rating_all,
-            
-            # Calculated metrics
-            "momentum": round(momentum, 2),
-            "discovery_capture": round(discovery_capture, 2),
-            "quality_retention": round(quality_retention, 3),
-            "rating_trend_7d_vs_alltime": round(rating_7d - rating_all, 3),
-            
-            # Timeline
-            "release": release_date,
-            "added": gamepass_date,
-            "days_since_release": days_since_release,
-            "days_since_gp_add": days_since_gp_add,
-            "is_day_one_gp": (days_since_gp_add <= 1) if pd.notna(gamepass_date) else False,
-        }
-    except Exception as e:
-        print(f"Error processing game: {e}")
-        return None
+        if getattr(release_date.dt, 'tz', None) is not None:
+            release_date = release_date.dt.tz_convert(None)
+    except Exception:
+        # fallback: attempt elementwise removal
+        release_date = release_date.apply(lambda x: x.tz_convert(None) if getattr(x, 'tzinfo', None) is not None else x)
+
+    try:
+        if getattr(gamepass_date.dt, 'tz', None) is not None:
+            gamepass_date = gamepass_date.dt.tz_convert(None)
+    except Exception:
+        gamepass_date = gamepass_date.apply(lambda x: x.tz_convert(None) if getattr(x, 'tzinfo', None) is not None else x)
+    
+    # Calculate time deltas using a tz-naive 'now'
+    now = pd.Timestamp.now()
+    df['days_since_release'] = (now - release_date).dt.days
+    df['days_since_gp_add'] = (now - gamepass_date).dt.days
+    
+    # Calculate metrics
+    df['momentum'] = ((r7 / r30 * 100).fillna(0)).round(2)
+    df['discovery_capture'] = ((r7 / r_all * 100).fillna(0)).round(2)
+    df['quality_retention'] = (rating_30d - rating_all).round(3)
+    df['rating_trend_7d_vs_alltime'] = (rating_7d - rating_all).round(3)
+    df['is_day_one_gp'] = (df['days_since_gp_add'] <= 1) & (gamepass_date.notna())
+    
+    return df
+
 
 def build_aggregated_dataframe(tidy_json_files):
     """Build master DataFrame from multiple tidy JSON files."""
@@ -97,38 +81,45 @@ def build_aggregated_dataframe(tidy_json_files):
     return df
 
 # ============================================================================
-# GENRE-LEVEL ANALYSIS
+# Genre-LEVEL ANALYSIS
 # ============================================================================
 
-def genre_performance_analysis(df):
-    """Analyze performance metrics by genre."""
-    genre_stats = df.groupby('genre').agg({
+def Genre_performance_analysis(df):
+    """Analyze performance metrics by Genre."""
+    Genre_stats = df.groupby('Genre').agg({
         'momentum': ['median', 'mean', 'std'],
         'discovery_capture': ['median', 'mean'],
         'quality_retention': ['median', 'mean'],
-        'rating_7d': ['mean', 'std', 'median'],
-        'rating_30d': ['mean', 'std', 'median'],
-        'rating_alltime': ['mean', 'std', 'median'],
+        'rating_7_days_count': ['mean', 'std', 'median'],
+        'rating_30_days_count': ['mean', 'std', 'median'],
+        'rating_alltime_count': ['mean', 'std', 'median'],
+        'rating_alltime_avg': ['mean', 'std', 'median'],
+        'rating_30_days_avg': ['mean', 'std', 'median'],
+        'rating_7_days_avg': ['mean', 'std', 'median'],
         'rating_trend_7d_vs_alltime': ['mean', 'std', 'median'],
-        'title': 'count'  # Number of games per genre
+        'title': 'count'  # Number of games per Genre
     }).round(2)
     
-    genre_stats.columns = ['_'.join(col).strip() for col in genre_stats.columns.values]
-    genre_stats = genre_stats.rename(columns={'title_count': 'game_count'})
-    genre_stats = genre_stats.sort_values('momentum_median', ascending=False)
+    Genre_stats.columns = ['_'.join(col).strip() for col in Genre_stats.columns.values]
+    Genre_stats = Genre_stats.rename(columns={'title_count': 'game_count'})
+    Genre_stats = Genre_stats.sort_values('momentum_median', ascending=False)
     
-    return genre_stats
+    return Genre_stats
 
-def genre_gamepass_comparison(df):
-    """Compare Game Pass vs Non-Game Pass games by genre."""
-    comparison = df.groupby(['genre', 'has_gamepass']).agg({ #using the agg fucntion to peform a series of operations on the grouped data to get summary statistics for each genre and Game Pass status
+def Genre_gamepass_comparison(df):
+    """Compare Game Pass vs Non-Game Pass games by Genre."""
+    comparison = df.groupby(['Genre', 'has_gamepass_remediation']).agg({ #using the agg fucntion to peform a series of operations on the grouped data to get summary statistics for each Genre and Game Pass status
         'momentum': 'mean',
         'discovery_capture': 'mean',
         'quality_retention': 'mean',
-        'rating_7d': 'mean',
-        'rating_30d': 'mean',
-        'rating_alltime': 'mean',
-        'title': 'count'
+        'rating_7_days_avg': ['mean', 'std', 'median'],
+        'rating_30_days_avg': ['mean', 'std', 'median'],
+        'rating_alltime_avg': ['mean', 'std', 'median'],
+        'rating_7_days_count': ['mean', 'std', 'median'],
+        'rating_30_days_count': ['mean', 'std', 'median'],
+        'rating_alltime_count': ['mean', 'std', 'median'],
+        'has_gamepass_remediation': 'sum',  # Number of games on GP
+        'title': 'count'  # Total games
     }).round(2)
     
     comparison = comparison.rename(columns={'title': 'game_count'})
@@ -145,25 +136,40 @@ def publisher_performance_analysis(df):
         'momentum': 'mean',
         'discovery_capture': 'mean',
         'quality_retention': 'mean',
-        'rating_7d': 'mean',
-        'has_gamepass': 'sum',  # Number of games on GP
+        'rating_7_days_avg': ['mean', 'std', 'median'],
+        'rating_30_days_avg': ['mean', 'std', 'median'],
+        'rating_alltime_avg': ['mean', 'std', 'median'],
+        'rating_7_days_count': ['mean', 'std', 'median'],
+        'rating_30_days_count': ['mean', 'std', 'median'],
+        'rating_alltime_count': ['mean', 'std', 'median'],
+        'has_gamepass_remediation': 'sum',  # Number of games on GP
         'title': 'count'  # Total games
     }).round(2)
+
+    pub_stats = pub_stats.rename(columns={'title': 'total_games', 'has_gamepass_remediation': 'gamepass_count',
+                                          'title_count': 'total_games',
+                                          'momentum_mean': 'momentum_avg',
+                                          'discovery_capture_mean': 'discovery_capture_avg',
+                                          'quality_retention_mean': 'quality_retention_avg'})
+    gp_percentage = (pub_stats['gamepass_count'] / pub_stats['total_games'] * 100).round(1)
     
-    pub_stats.columns = ['momentum_avg', 'discovery_capture_avg', 'quality_retention_avg', 
-                         'rating_7d_avg', 'gamepass_count', 'total_games']
-    pub_stats['gp_percentage'] = (pub_stats['gamepass_count'] / pub_stats['total_games'] * 100).round(1)
-    pub_stats = pub_stats.sort_values('momentum_avg', ascending=False)
-    
-    return pub_stats
+
+    return pub_stats, gp_percentage
 
 def publisher_gamepass_efficiency(df):
     """Show which publishers see the biggest sentiment jump with Game Pass."""
-    gp_vs_paid = df.groupby(['publisher', 'has_gamepass']).agg({
+    gp_vs_paid = df.groupby(['publisher', 'has_gamepass_remediation']).agg({
         'momentum': 'mean',
+        'discovery_capture': 'mean',
         'quality_retention': 'mean',
-        'rating_7d': 'mean',
-        'rating_alltime': 'mean'
+        'rating_7_days_avg': ['mean', 'std', 'median'],
+        'rating_30_days_avg': ['mean', 'std', 'median'],
+        'rating_alltime_avg': ['mean', 'std', 'median'],
+        'rating_7_days_count': ['mean', 'std', 'median'],
+        'rating_30_days_count': ['mean', 'std', 'median'],
+        'rating_alltime_count': ['mean', 'std', 'median'],
+        'has_gamepass_remediation': 'sum',  # Number of games on GP
+        'title': 'count'  # Total games
     }).round(3)
     
     return gp_vs_paid
@@ -175,39 +181,49 @@ def publisher_gamepass_efficiency(df):
 def momentum_rating_correlation(df):
     """Does higher momentum correlate with higher ratings?"""
     # Filter out null values for correlation
-    df_clean = df.dropna(subset=['momentum', 'rating_7d', 'rating_30d', 'rating_alltime'])
+    df_clean = df.dropna(subset=['momentum', 'rating_7_days_avg', 'rating_30_days_avg', 'rating_alltime_avg'])
     
     if len(df_clean) == 0:
         return None
     
     correlation = df_clean[['momentum', 'discovery_capture', 'quality_retention', 
-                            'rating_7d', 'rating_30d', 'rating_alltime']].corr().round(3)
-    
+                            'rating_7_days_avg', 'rating_30_days_avg', 'rating_alltime_avg']].corr().round(3)
+
     return correlation
 
 def day_one_vs_existing_gp(df):
     """Compare day-one Game Pass additions vs games added later."""
-    gp_games = df[df['has_gamepass']].copy()
-    gp_games = gp_games[gp_games['is_day_one_gp'] == True  if gp_games['release_date'] == gp_games['added'] else False]
+    gp_games = df[df['has_gamepass_remediation'] == True].copy()
+    # ensure datetimes
+    gp_games['Release'] = pd.to_datetime(gp_games['Release'], errors='coerce')
+    gp_games['Added'] = pd.to_datetime(gp_games['Added'], errors='coerce')
+    # elementwise day-one mask: same calendar date (or within 1 day tolerance)
+    gp_games['is_day_one_gp'] = (
+        gp_games['Added'].notna()
+    ) & (
+        (gp_games['Added'].dt.date == gp_games['Release'].dt.date) |
+        (gp_games['Added'] - gp_games['Release']).dt.days.abs().le(1)
+    )
     
     day_one = gp_games[gp_games['is_day_one_gp'] == True]
     existing = gp_games[gp_games['is_day_one_gp'] == False]
     
     comparison = pd.DataFrame({
-        'Metric': ['Count', 'Momentum (avg)', 'Discovery Capture (avg)', 'Quality Retention (avg)', 'Rating 7d (avg)'],
         'Day-One GP': [
             len(day_one),
             day_one['momentum'].mean().round(2),
             day_one['discovery_capture'].mean().round(2),
             day_one['quality_retention'].mean().round(3),
-            day_one['rating_7d'].mean().round(2)
+            day_one['rating_7_days_avg'].mean().round(2),
+            day_one['rating_7_days_count'].mean().round(2)
         ],
         'Later Addition': [
             len(existing),
             existing['momentum'].mean().round(2),
             existing['discovery_capture'].mean().round(2),
             existing['quality_retention'].mean().round(3),
-            existing['rating_7d'].mean().round(2)
+            existing['rating_7_days_avg'].mean().round(2),
+            existing['rating_7_days_count'].mean().round(2)
         ]
     })
     
@@ -222,29 +238,29 @@ def create_visualizations(df, output_prefix="analysis"):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     # 1. Momentum by Genre
-    genre_momentum = df.groupby('genre')['momentum'].median().sort_values(ascending=False)
-    axes[0, 0].barh(genre_momentum.index, genre_momentum.values, color='steelblue')
+    Genre_momentum = df.groupby('Genre')['momentum'].median().sort_values(ascending=False)
+    axes[0, 0].barh(Genre_momentum.index, Genre_momentum.values, color='steelblue')
     axes[0, 0].set_xlabel('Median Momentum (%)')
     axes[0, 0].set_title('Engagement Momentum by Genre')
     
     # 2. Quality Retention by Game Pass Status
-    qr_by_gp = df.groupby('has_gamepass')['quality_retention'].mean()
+    qr_by_gp = df.groupby('has_gamepass_remediation')['quality_retention'].mean()
     axes[0, 1].bar(['Paid Only', 'Game Pass'], qr_by_gp.values, color=['coral', 'green'])
     axes[0, 1].set_ylabel('Quality Retention (Rating Change)')
     axes[0, 1].set_title('Do Game Pass Players Rate Higher?')
     axes[0, 1].axhline(y=0, color='black', linestyle='--', alpha=0.5)
     
     # 3. Momentum vs Rating 7d Scatter
-    scatter = axes[1, 0].scatter(df['momentum'], df['rating_7d'], 
-                                 c=df['has_gamepass'].astype(int), cmap='viridis', alpha=0.6, s=50)
+    scatter = axes[1, 0].scatter(df['momentum'], df['rating_7_days_count'], 
+                                 c=df['has_gamepass_remediation'].astype(int), cmap='viridis', alpha=0.6, s=50)
     axes[1, 0].set_xlabel('Momentum (%)')
     axes[1, 0].set_ylabel('7-Day Rating')
     axes[1, 0].set_title('Momentum vs Current Rating')
     plt.colorbar(scatter, ax=axes[1, 0], label='Game Pass')
     
     # 4. Discovery Capture Distribution
-    axes[1, 1].hist([df[df['has_gamepass'] == False]['discovery_capture'],
-                     df[df['has_gamepass'] == True]['discovery_capture']],
+    axes[1, 1].hist([df[df['has_gamepass_remediation'] == False]['discovery_capture'],
+                     df[df['has_gamepass_remediation'] == True]['discovery_capture']],
                     label=['Paid', 'Game Pass'], bins=15, alpha=0.7)
     axes[1, 1].set_xlabel('Discovery Capture (%)')
     axes[1, 1].set_ylabel('Frequency')
@@ -263,29 +279,30 @@ if __name__ == "__main__":
     print("=" * 80)
     print("COMPREHENSIVE GAME PASS IMPACT ANALYSIS")
     print("=" * 80)
-    # Build master dataframe
-    df_all = prepare_games_dataset("xbox_data_20251224_1937.json")
-    df_all = merge_genre_from_csv(df_all, "xbox_final_cleaned_results.csv")
-    print(f"\n📊 Loaded {len(df_all)} games")
+    # Load and process dataframe
+    df_all = pd.read_csv('xbox_final_merged_data.csv')
+    df_all = calculate_game_metrics(df_all)
+    print(f"\n📊 Loaded and processed {len(df_all)} games")
     
-    # ────────────────────────────────────────────────────────────────────────
-    # 1. GENRE PERFORMANCE
+
+ # ────────────────────────────────────────────────────────────────────────
+    # 1. Genre PERFORMANCE
     # ────────────────────────────────────────────────────────────────────────
     print("\n" + "="*80)
-    print("GENRE PERFORMANCE ANALYSIS")
+    print("Genre PERFORMANCE ANALYSIS")
     print("="*80)
     
-    genre_perf = genre_performance_analysis(df_all)
+    Genre_perf = Genre_performance_analysis(df_all)
     print("\nGenre Momentum & Ratings:")
-    print(genre_perf)
-    genre_perf.to_csv("genre_performance.csv")
-    print("✓ Saved to genre_performance.csv")
+    print(Genre_perf)
+    Genre_perf.to_csv("Genre_performance.csv")
+    print("✓ Saved to Genre_performance.csv")
     
-    genre_gp = genre_gamepass_comparison(df_all)
+    Genre_gp = Genre_gamepass_comparison(df_all)
     print("\nGame Pass vs Paid Games by Genre:")
-    print(genre_gp)
-    genre_gp.to_csv("genre_gamepass_comparison.csv")
-    print("✓ Saved to genre_gamepass_comparison.csv")
+    print(Genre_gp)
+    Genre_gp.to_csv("Genre_gamepass_comparison.csv")
+    print("✓ Saved to Genre_gamepass_comparison.csv")
     
     # ────────────────────────────────────────────────────────────────────────
     # 2. PUBLISHER PERFORMANCE
@@ -293,8 +310,8 @@ if __name__ == "__main__":
     print("\n" + "="*80)
     print("PUBLISHER PERFORMANCE ANALYSIS")
     print("="*80)
-    
-    pub_perf = publisher_performance_analysis(df_all)
+
+    pub_perf, gp_percentage = publisher_performance_analysis(df_all)
     print("\nPublisher Momentum Rankings:")
     print(pub_perf.head(10))
     pub_perf.to_csv("publisher_performance.csv")
@@ -343,8 +360,8 @@ if __name__ == "__main__":
     print("KEY INSIGHTS")
     print("="*80)
     
-    gp_games = df_all[df_all['has_gamepass'] == True]
-    paid_games = df_all[df_all['has_gamepass'] == False]
+    gp_games = df_all[df_all['has_gamepass_remediation'] == True]
+    paid_games = df_all[df_all['has_gamepass_remediation'] == False]
     
     print(f"\n📈 MOMENTUM:")
     print(f"   Game Pass (avg):  {gp_games['momentum'].mean():.2f}%")
@@ -360,13 +377,14 @@ if __name__ == "__main__":
     print(f"   Game Pass (avg):  {gp_games['discovery_capture'].mean():.2f}% of all-time engagement")
     print(f"   Paid Only (avg):  {paid_games['discovery_capture'].mean():.2f}%")
     
-    print(f"\n🏆 TOP GENRE BY MOMENTUM: {genre_perf.index[0]}")
-    print(f"   Median Momentum: {genre_perf['momentum_median'].iloc[0]:.2f}%")
+    print(f"\n🏆 TOP Genre BY MOMENTUM: {Genre_perf.index[0]}")
+    print(f"   Median Momentum: {Genre_perf['momentum_median'].iloc[0]:.2f}%")
     
     print(f"\n👑 TOP PUBLISHER BY MOMENTUM: {pub_perf.index[0]}")
-    print(f"   Avg Momentum: {pub_perf['momentum_avg'].iloc[0]:.2f}%")
     print(f"   Game Pass Titles: {int(pub_perf['gamepass_count'].iloc[0])}/{int(pub_perf['total_games'].iloc[0])}")
     
     print("\n" + "="*80)
     print("Analysis complete! Check the CSV files for detailed data.")
     print("="*80)
+
+
