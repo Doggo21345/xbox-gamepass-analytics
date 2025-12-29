@@ -38,3 +38,8 @@ df.to_csv("gamepass_impact_report.csv", index=False)
 
 print("--- Publisher Comparison Table ---")
 print(df.to_string(index=False))
+
+
+DF = pd.read_csv('gamepass_impact_report.csv')
+DF.head(5)
+
