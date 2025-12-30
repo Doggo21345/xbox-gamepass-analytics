@@ -69,6 +69,7 @@ $$
     SF6.metric("Recent Ratings (7d) for SF6", "1.3", "-60.61%", border=True, help = "Over the past 7days SF6 has seen a significant drop in ratings compared to the current momentum of those in the 30 days.")
     MK1.metric("Recent Ratings (7d) for Mk1", "2.6", "+4%", border=True, 
                help="Over the past 7days Mk1 has seen a slight increase in ratings compared to the current momentum of those in the 30 days.")
+    st.markdown("From the engagement metrics above we can see that MK1 has a much higher recent rating compared to SF6. This indicates that players on Game Pass are more engaged with the game and are more likely to leave positive reviews. Althought it is a slight increase it is still a positive trend compared to SF6 which is seeing a significant drop in recent ratings.")
 elif selected == "Watch the Series!":
     st.title('Check out the full series in Short Video Format!')
     st.video("https://www.youtube.com/shorts/oNFDN8k1bpc", format="video/mp4", start_time=0)
