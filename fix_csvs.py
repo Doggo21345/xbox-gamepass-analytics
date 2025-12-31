@@ -54,10 +54,10 @@ def combine_multirow_header(csv_path, header_rows=2, sep='_', out_path=None):
 
 # Usage
 df_fixed = combine_multirow_header(
-    "publisher_gamepass_efficiency.csv", 
+    "Genre_Gamepass.csv", 
     header_rows=2, 
     sep='_', 
-    out_path="publisher_gamepass_efficiency_fixed.csv"
+    out_path="Genre_Gamepass_fixed.csv"
 )
 
 print(df_fixed.columns.tolist())

@@ -109,9 +109,9 @@ def Genre_performance_analysis(df):
 def Genre_gamepass_comparison(df):
     """Compare Game Pass vs Non-Game Pass games by Genre."""
     comparison = df.groupby(['Genre', 'has_gamepass_remediation']).agg({ #using the agg fucntion to peform a series of operations on the grouped data to get summary statistics for each Genre and Game Pass status
-        'momentum': 'mean',
-        'discovery_capture': 'mean',
-        'quality_retention': 'mean',
+        'momentum': ['mean', 'std', 'median'],
+        'discovery_capture': ['mean', 'std', 'median'],
+        'quality_retention': ['mean', 'std', 'median'],
         'rating_7_days_avg': ['mean', 'std', 'median'],
         'rating_30_days_avg': ['mean', 'std', 'median'],
         'rating_alltime_avg': ['mean', 'std', 'median'],
@@ -133,9 +133,9 @@ def publisher_performance_analysis(df):
     """Identify which publishers are winning on Game Pass."""
     # Overall publisher stats
     pub_stats = df.groupby('publisher').agg({
-        'momentum': 'mean',
-        'discovery_capture': 'mean',
-        'quality_retention': 'mean',
+        'momentum': ['mean', 'std', 'median'],
+        'discovery_capture': ['mean', 'std', 'median'],
+        'quality_retention': ['mean', 'std', 'median'],
         'rating_7_days_avg': ['mean', 'std', 'median'],
         'rating_30_days_avg': ['mean', 'std', 'median'],
         'rating_alltime_avg': ['mean', 'std', 'median'],
@@ -298,6 +298,8 @@ if __name__ == "__main__":
     Genre_perf.to_csv("Genre_performance.csv")
     print("✓ Saved to Genre_performance.csv")
     
+    df_all = pd.read_csv('xbox_final_merged_data.csv')
+    df_all = calculate_game_metrics(df_all)
     Genre_gp = Genre_gamepass_comparison(df_all)
     print("\nGame Pass vs Paid Games by Genre:")
     print(Genre_gp)
