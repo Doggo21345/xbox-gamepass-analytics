@@ -54,7 +54,7 @@ def combine_multirow_header(csv_path, header_rows=2, sep='_', out_path=None):
 
 # Usage
 df_fixed = combine_multirow_header(
-    "Genre_Gamepass.csv", 
+    "Genre_gamepass_comparison.csv", 
     header_rows=2, 
     sep='_', 
     out_path="Genre_Gamepass_fixed.csv"

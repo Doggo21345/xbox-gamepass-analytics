@@ -107,8 +107,8 @@ $$
 def Genre_performance_analysis(df):
     Genre_stats = df.groupby('Genre').agg({
         'momentum': ['median', 'mean', 'std'],
-        'discovery_capture': ['median', 'mean'],
-        'quality_retention': ['median', 'mean'],
+        'discovery_capture': ['median', 'mean', 'std'],
+        'quality_retention': ['median', 'mean', 'std'],
         'rating_7_days_count': ['mean', 'std', 'median'],
         'rating_30_days_count': ['mean', 'std', 'median'],
         'rating_alltime_count': ['mean', 'std', 'median'],
@@ -120,5 +120,36 @@ def Genre_performance_analysis(df):
     }).round(2)
     """, language="python")
     st.markdown("This was used to compute an *aggregate baseline* for the genre level of all of the games inside of the data set The reasoning behind this was to see whether the discovery metrics for each genre were something that was trending upwards in the genre as whole or just on gamepass ")
+    st.markdown("There are several statisitcs that I created in this that I would like to share the definitons of ")
+    latext = r'''
+## Discovery Capture(%)
+
+### Full equation 
+
+$$ 
+\text{Discovery Capture(\%)} = \frac{a}{b} \cdot 100
+$$ 
+
+### Where:
+- $a$ = The number of votes in the last 7 days
+- $b$ = The total number of votes all time for the product
+'''
+    st.write(latext)
+    latext = r'''
+## Quality retention
+
+### Full equation 
+
+$$ 
+\text{Quality Retention} = {A} - {B} 
+$$ 
+
+### Where:
+- $A$ = Avg rating in the past 7 days 
+- $B$ = Avg Rating all Time 
+'''
+    st.write(latext)
     df = pd.read_csv("Genre_performance.csv")
-    st.markdown("We are then able to get the following CSV once that happens")
+    st.dataframe(df)
+    st.markdown("We are then able to get the following CSV once that happens **Note** Some of these will not have a standard deviation to calculate because they were uniquely only one game")
+    
