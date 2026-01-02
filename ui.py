@@ -104,7 +104,6 @@ $$
     st.write(latext)
     st.markdown("Since the genres are an aggregation of games I used the agg function ijn python to compute summary statistics for each genre here is the code down below")
     st.code("""
-def Genre_performance_analysis(df):
     Genre_stats = df.groupby('Genre').agg({
         'momentum': ['median', 'mean', 'std'],
         'discovery_capture': ['median', 'mean', 'std'],
@@ -149,7 +148,63 @@ $$
 - $B$ = Avg Rating all Time 
 '''
     st.write(latext)
-    df = pd.read_csv("Genre_performance.csv")
-    st.dataframe(df)
-    st.markdown("We are then able to get the following CSV once that happens **Note** Some of these will not have a standard deviation to calculate because they were uniquely only one game")
+    genre_performance = pd.read_csv("Genre_performance.csv")
+    st.dataframe(genre_performance)
+    st.markdown("We are then able to get the following CSV once that happens.")
+    st.markdown('''**Note** Some of these will not have a standard deviation to calculate because they were uniquely only one game"
+    .''')
+    st.markdown("We are able to then use this csv as a basline for all the different Genres that we have data on ")
+    sns.set_theme(style="darkgrid",
+        rc={
+            "axes.facecolor": "#0e1117",
+            "figure.facecolor": "#0e1117",
+            "axes.edgecolor": "#9aa0a6",
+            "grid.color": "#2a2f3a",
+            "text.color": "#e8eaed",
+            "axes.labelcolor": "#e8eaed",
+            "xtick.color": "#e8eaed",
+            "ytick.color": "#e8eaed",
+        }
+    )
+    genre_performance_10 = genre_performance.sort_values(by='game_count', ascending=False).head(10)
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+genre_performance_10 = genre_performance.sort_values(by='game_count', ascending=False).head(10)
+
+
+sns.barplot(data=genre_performance_10, x='Genre', y='game_count', ax=ax, palette="viridis")
+
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+ax.set_title('Top 10 Genres by Game Count')
+ax.set_xlabel('Genre')
+ax.set_ylabel('Number of Games')
+
+plt.tight_layout()
+
+
+st.pyplot(fig)
+
+st.markdown("From this we are able to see that overall the games have a very different sample sizes which will become relevant for when we try statistical techniques on the data But by establishing this as a baseline we can now go and create a similar data frame that groups by the games both on Xbox Game Pass and those that are not")
+st.code("""
+    Genre_stats_comparsion = df.groupby('Genre, 'has_gamepass_remediation').agg({
+        'momentum': ['median', 'mean', 'std'],
+        'discovery_capture': ['median', 'mean', 'std'],
+        'quality_retention': ['median', 'mean', 'std'],
+        'rating_7_days_count': ['mean', 'std', 'median'],
+        'rating_30_days_count': ['mean', 'std', 'median'],
+        'rating_alltime_count': ['mean', 'std', 'median'],
+        'rating_alltime_avg': ['mean', 'std', 'median'],
+        'rating_30_days_avg': ['mean', 'std', 'median'],
+        'rating_7_days_avg': ['mean', 'std', 'median'],
+        'rating_trend_7d_vs_alltime': ['mean', 'std', 'median'],
+        'title': 'count'  
+    }).round(2)
+    """, language="python")
+st.write("From this we are able to come out with a similar data frame as the in the data frame above")
+genre_comaprsion = pd.read_csv("Genre_gamepass_comparison_fixed.csv")
+st.dataframe(genre_comaprsion)
+st.write("The major differnece between these data frames is chiefly that one is seperated into groups by whether they are included into game pass vs the other one only contains the ")
+
+
+
     
