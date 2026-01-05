@@ -495,4 +495,188 @@ if not top_genres.empty:
             st.write(f"**Publisher Strategy:** This genre shows high ecosystem synergy. Game Pass acts as a reliable funnel for {row['Genre']} titles.")
 else:
     st.info("No single genre meets all positive criteria—this suggests a more nuanced, publisher-specific approach is required.")
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+st.set_page_config(page_title="Publisher Ecosystem Intelligence", layout="wide")
+
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stMetric { 
+        background-color: #1e2129; 
+        border-radius: 10px; 
+        padding: 15px; 
+        border-top: 4px solid #107C10; 
+    }
+    h1, h2, h3 { color: #107C10 !important; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: #1e2129;
+        border-radius: 4px 4px 0px 0px;
+        color: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+df = pd.read_csv("publisher_final.csv")
+st.dataframe(df)
+
+
+st.title(" Publisher Strategic Intelligence")
+st.markdown("### Analyzing the 'Game Pass Lift' across the Publishing Ecosystem")
+
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/f/f9/Xbox_one_logo.svg", width=80)
+st.sidebar.header("Filter Intelligence")
+selected_publishers = st.sidebar.multiselect(
+    "Select Specific Publishers", 
+    options=df['publisher'].unique(),
+    default=["Activision", "Electronic Arts", "Bethesda Softworks", "Ubisoft", "Xbox Game Studios"]
+)
+
+filtered_df = df[df['publisher'].isin(selected_publishers)]
+gp_only = filtered_df[filtered_df['has_gamepass_remediation'] == True]
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    avg_mom = gp_only['momentum_lift'].mean()
+    st.metric("Avg. Momentum Lift", f"{avg_mom:.1f}%", "Discovery Speed")
+with col2:
+    avg_qual = gp_only['quality_lift'].mean()
+    st.metric("Avg. Quality Retention", f"{avg_qual:.2f}", "Player Satisfaction")
+with col3:
+    avg_disc = gp_only['discovery_lift'].mean()
+    st.metric("Avg. Discovery Capture", f"{avg_disc:.2f}%", "New User Funnel")
+with col4:
+    total_titles = gp_only['title_count'].sum()
+    st.metric("GP Titles Analyzed", int(total_titles))
+
+st.divider()
+
+tab1, tab2, tab3 = st.tabs([" Lift Analysis", " Quality vs. Discovery", " Portfolio Strategy"])
+
+with tab1:
+    st.subheader("Which Publishers Gain the Most from Game Pass?")
+    st.write("This chart compares the 'Lift'—the delta between Game Pass performance and paid baselines—across publishers.")
     
+    lift_melted = gp_only.melt(
+        id_vars='publisher', 
+        value_vars=['momentum_lift', 'discovery_lift', 'quality_lift'],
+        var_name='Metric Type', 
+        value_name='Lift Value'
+    )
+    
+    fig_lift = px.bar(
+        lift_melted,
+        x='publisher',
+        y='Lift Value',
+        color='Metric Type',
+        barmode='group',
+        color_discrete_map={
+            'momentum_lift': '#107C10',
+            'discovery_lift': '#00A4EF',
+            'quality_lift': '#FFB900'
+        },
+        template="plotly_dark"
+    )
+    st.plotly_chart(fig_lift, use_container_width=True)
+
+with tab2:
+    st.subheader("The 'Free Player' Paradox")
+    st.write("Does more Discovery lead to lower Quality? Stakeholders fear that 'free' players leave bad reviews because they aren't 'invested'.")
+    
+    # FIX: Remove rows where size or axis data is missing
+    plot_data = gp_only.dropna(subset=['discovery_lift', 'quality_lift', 'title_count'])
+    
+    # Alternative FIX: If you prefer to keep the data and just set a default size
+    # plot_data = gp_only.copy()
+    # plot_data['title_count'] = plot_data['title_count'].fillna(1)
+
+    if not plot_data.empty:
+        fig_scatter = px.scatter(
+            plot_data,
+            x='discovery_lift',
+            y='quality_lift',
+            size='title_count',
+            color='publisher',
+            hover_name='publisher',
+            text='publisher',
+            labels={'discovery_lift': 'Discovery Capture Lift', 'quality_lift': 'Quality Retention Lift'},
+            template="plotly_dark",
+            size_max=40
+        )
+        fig_scatter.add_hline(y=0, line_dash="dash", line_color="white", annotation_text="Baseline Quality")
+        
+        st.plotly_chart(fig_scatter, use_container_width=True)
+        st.info("💡 **Insight:** Publishers in the **Top-Right quadrant** are the most successful. They are gaining massive new audiences WITHOUT sacrificing game ratings.")
+    else:
+        st.warning("No data available to display the scatter plot after removing missing values.")
+
+with tab3:
+    st.subheader("Portfolio Volume vs. Performance")
+    col_a, col_b = st.columns([1, 2])
+    
+    with col_a:
+        st.write("""
+        **Stakeholder Question:** *Should we put our whole catalog on Game Pass or just a few key titles?*
+        
+        This analysis looks at the correlation between the number of titles a publisher provides and the average momentum boost they receive.
+        """)
+        
+        corr = gp_only['title_count'].corr(gp_only['momentum_lift'])
+        st.write(f"**Correlation Coefficient:** `{corr:.2f}`")
+        
+    with col_b:
+        fig_vol = px.scatter(
+            gp_only,
+            x='title_count',
+            y='momentum_mean',
+            color='publisher',
+            trendline="ols",
+            template="plotly_dark",
+            title="Does Title Volume Drive Momentum?"
+        )
+        st.plotly_chart(fig_vol, use_container_width=True)
+
+st.divider()
+st.header("🔍 Publisher Scorecard")
+target_pub = st.selectbox("Select a Publisher for a detailed audit:", df['publisher'].unique())
+
+pub_data = df[df['publisher'] == target_pub]
+
+latest_mom = pub_data['momentum_mean'].iloc[0]
+fig_gauge = go.Figure(go.Indicator(
+    mode = "gauge+number",
+    value = latest_mom,
+    domain = {'x': [0, 1], 'y': [0, 1]},
+    title = {'text': "Current Momentum Score"},
+    gauge = {
+        'axis': {'range': [None, 100], 'tickcolor': "white"},
+        'bar': {'color': "#107C10"},
+        'steps': [
+            {'range': [0, 20], 'color': "#333"},
+            {'range': [20, 50], 'color': "#555"}
+        ],
+        'threshold': {
+            'line': {'color': "red", 'width': 4},
+            'thickness': 0.75,
+            'value': pub_data['momentum_mean_baseline'].iloc[0] if 'momentum_mean_baseline' in pub_data else 50
+        }
+    }
+))
+fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
+st.plotly_chart(fig_gauge)
+
+st.write(f"Showing raw data for **{target_pub}**:")
+st.dataframe(pub_data.style.highlight_max(axis=0, color='#107C10'))
+
+st.sidebar.divider()
+st.sidebar.caption("Data Source: MS Store API Internal Aggregate")
+st.sidebar.button("Generate Executive PDF Report")
