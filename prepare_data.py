@@ -30,7 +30,7 @@ def prepare_games_dataset(json_file):
                 "short_description": game.get('short_description', ''),
                 
                 # Category/Genre (will be "Unknown" - can enrich later)
-                "category": "Unknown",
+                "category": game.get('category', 'unkown'),
                 
                 # Release & GP dates
                 "original_release_date": game.get('release_date'),
